@@ -1,9 +1,3 @@
----
-services:
-platforms:
-author: azure
----
-
 # storage-file-java-getting-started
 Basic Operations with Azure Storage File Service
 ## Running this sample
