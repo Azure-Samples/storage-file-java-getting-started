@@ -49,14 +49,11 @@ import com.microsoft.azure.storage.file.ListFileItem;
  *
  * Instructions:
  *      This sample can be run using your Azure Storage account by updating the config.properties file with your "AccountName" and "Key".
- *      File Service emulation is currently not available in the Azure Storage Emulator.
  *
  *      To run the sample using the Storage Service
- *          1.  Open the app.config file and comment out the connection string for the emulator (UseDevelopmentStorage=True) and
- *              uncomment the connection string for the storage service (AccountName=[]...)
- *          2.  Create a Storage Account through the Azure Portal and provide your [AccountName] and [AccountKey] in the config.properties file.
+ *          1.  Create a Storage Account through the Azure Portal and provide your [AccountName] and [AccountKey] in the config.properties file.
  *              See https://azure.microsoft.com/en-us/documentation/articles/storage-create-storage-account/ for more information.
- *          3.  Set breakpoints and run the project.
+ *          2.  Set breakpoints and run the project.
  */
 public class FileBasics {
 
