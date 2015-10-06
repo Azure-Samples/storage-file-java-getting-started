@@ -16,6 +16,7 @@
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,6 +24,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.Scanner;
@@ -34,6 +36,7 @@ import com.microsoft.azure.storage.file.CloudFile;
 import com.microsoft.azure.storage.file.CloudFileClient;
 import com.microsoft.azure.storage.file.CloudFileDirectory;
 import com.microsoft.azure.storage.file.CloudFileShare;
+import com.microsoft.azure.storage.file.FileRange;
 import com.microsoft.azure.storage.file.ListFileItem;
 
 /*
@@ -60,7 +63,7 @@ public class FileBasics {
     protected static CloudFileShare fileShare = null;
     protected final static String fileShareNamePrefix = "filebasics";
     protected final static String directoryNamePrefix = "dir-";
-    protected final static String tempFileNamePrefix = "HelloWorld-";
+    protected final static String tempFileNamePrefix = "file-";
     protected final static String tempFileNameSuffix = ".txt";
 
     /**
@@ -75,6 +78,7 @@ public class FileBasics {
 
         Scanner scan = null;
         BufferedWriter bufferedWriter = null;
+        FileInputStream fileInputStream = null;
         try {
             // Create a scanner for user input
             scan = new Scanner(System.in);
@@ -82,9 +86,10 @@ public class FileBasics {
             // Create a sample file for use
             System.out.println("Creating a sample file for upload demonstration.");
             File tempFile = File.createTempFile(tempFileNamePrefix, tempFileNameSuffix);
+            tempFile.deleteOnExit();
             bufferedWriter = new BufferedWriter(new FileWriter(tempFile));
-            for (int i = 0; i < 256; i++) {
-                bufferedWriter.write("Hello World!!");
+            for (int i = 0; i < 1024; i++) {
+                bufferedWriter.write(UUID.randomUUID().toString());
                 bufferedWriter.newLine();
             }
             bufferedWriter.close();
@@ -106,9 +111,9 @@ public class FileBasics {
             CloudFileDirectory rootDir = fileShare.getRootDirectoryReference();
 
             // Upload a local file to the root directory
-            System.out.println(String.format("\n2. Upload the sample file \"%s\" to the root directory.", tempFile.getAbsolutePath()));
-            CloudFile fileUnderRootDir = rootDir.getFileReference(tempFile.getName());
-            fileUnderRootDir.uploadFromFile(tempFile.getAbsolutePath());
+            System.out.println("\n2. Upload the sample file to the root directory.");
+            CloudFile file1 = rootDir.getFileReference(tempFile.getName());
+            file1.uploadFromFile(tempFile.getAbsolutePath());
             System.out.println("\tSuccessfully uploaded the file.");
 
             // Create a random directory under the root directory
@@ -123,35 +128,61 @@ public class FileBasics {
                 throw new IllegalStateException(String.format("Directory with name \"%s\" already exists.", directoryName));
             }
 
-            // Upload a local file to the newly created directory
-            System.out.println(String.format("\n4. Upload the sample file \"%s\" to the newly created directory.", tempFile.getAbsolutePath()));
-            CloudFile file = dir.getFileReference(tempFile.getName());
-            file.uploadFromFile(tempFile.getAbsolutePath());
-            System.out.println("\tSuccessfully uploaded the file.");
+            // Upload a local file to the newly created directory sparsely (Only upload certain ranges of the file)
+            System.out.println("\n4. Upload the sample file to the newly created directory partially in distinct ranges.");
+            CloudFile file2 = dir.getFileReference(tempFile.getName());
+            file2.create(tempFile.length());
+            fileInputStream = new FileInputStream(tempFile);
+            System.out.println("\t\tRange start: 0, length: 1024.");
+            file2.uploadRange(fileInputStream, 0, 1024);
+            System.out.println("\t\tRange start: 4096, length: 1536.");
+            fileInputStream.getChannel().position(4096);
+            file2.uploadRange(fileInputStream, 4096, 1536);
+            System.out.println("\t\tRange start: 8192, length: EOF.");
+            fileInputStream.getChannel().position(8192);
+            file2.uploadRange(fileInputStream, 8192, tempFile.length() - 8192);
+            fileInputStream.close();
+            System.out.println("\tSuccessfully uploaded the file sparsely.");
 
-            // List all files/directories under the root directory
-            System.out.println("\n5. List Files/Directories in root directory.");
-            Iterable<ListFileItem> results = rootDir.listFilesAndDirectories();
-            for (Iterator<ListFileItem> itr = results.iterator(); itr.hasNext(); ) {
-                ListFileItem item = itr.next();
-                String itemType = "FILE";
-                if (item.getClass() == CloudFileDirectory.class) {
-                    itemType = "DIR";
-                }
-                System.out.println(String.format("\t%s\t: %s", itemType, item.getUri().toString()));
+            // Query the file ranges
+            System.out.println(String.format("\n5. Query the file ranges for \"%s\".", file2.getUri().toURL()));
+            ArrayList<FileRange> fileRanges = file2.downloadFileRanges();
+            for (Iterator<FileRange> itr = fileRanges.iterator(); itr.hasNext(); ) {
+                FileRange fileRange = itr.next();
+                System.out.println(String.format("\tStart offset: %d, End offset: %d", fileRange.getStartOffset(), fileRange.getEndOffset()));
             }
 
-            // Download the uploaded file
-            String downloadedImagePath = String.format("%sCopyOf-%s", System.getProperty("java.io.tmpdir"), tempFile.getName());
-            System.out.println(String.format("\n6. Download file from \"%s\" to \"%s\".", file.getUri().toURL(), downloadedImagePath));
-            file.downloadToFile(downloadedImagePath);
-            System.out.println("\tSuccessfully downloaded the file.");
+            // Clear a range and re-query the file ranges
+            System.out.println(String.format("\n6. Clearing the second range partially and then re-query the file ranges for \"%s\".", file2.getUri().toURL()));
+            file2.clearRange(4608, 512);
+            fileRanges = file2.downloadFileRanges();
+            for (Iterator<FileRange> itr = fileRanges.iterator(); itr.hasNext(); ) {
+                FileRange fileRange = itr.next();
+                System.out.println(String.format("\tStart offset: %d, End offset: %d", fileRange.getStartOffset(), fileRange.getEndOffset()));
+            }
+
+            // List all files/directories under the root directory
+            System.out.println("\n7. List Files/Directories in root directory.");
+            enumerateFileShare(rootDir);
+
+            // Download the uploaded files
+            System.out.println("\n8. Download the uploaded files.");
+            String downloadedFilePath = String.format("%sfull-%s", System.getProperty("java.io.tmpdir"), tempFile.getName());
+            System.out.println(String.format("\tDownload the fully uploaded file from \"%s\" to \"%s\".", file1.getUri().toURL(), downloadedFilePath));
+            file1.downloadToFile(downloadedFilePath);
+            new File(downloadedFilePath).deleteOnExit();
+            downloadedFilePath = String.format("%ssparse-%s", System.getProperty("java.io.tmpdir"), tempFile.getName());
+            System.out.println(String.format("\tDownload the sparsely uploaded file from \"%s\" to \"%s\".", file2.getUri().toURL(), downloadedFilePath));
+            file2.downloadToFile(downloadedFilePath);
+            new File(downloadedFilePath).deleteOnExit();
+            System.out.println("\tSuccessfully downloaded the files.");
 
             // Delete the file and directory
-            System.out.print("6. Delete the file and directory. Press any key to continue...");
+            System.out.print("\n9. Delete the files and directory. Press any key to continue...");
             scan.nextLine();
-            file.delete();
-            System.out.println("\tSuccessfully deleted the file.");
+            file1.delete();
+            file2.delete();
+            System.out.println("\tSuccessfully deleted the files.");
             dir.delete();
             System.out.println("\tSuccessfully deleted the directory.");
         }
@@ -160,15 +191,32 @@ public class FileBasics {
         }
         finally {
             // Delete the file share (If you do not want to delete the file share comment the line of code below)
-            System.out.print("\n7. Delete the file share. Press any key to continue...");
-            scan.nextLine();
-            deleteFileShare(fileShare);
+            if (fileShare != null)
+            {
+                System.out.print("\n10. Delete the file share. Press any key to continue...");
+                scan.nextLine();
+                if (fileShare.deleteIfExists() == true) {
+                    System.out.println("\tSuccessfully deleted the file share.");
+                }
+                else {
+                    System.out.println("\tNothing to delete.");
+                }
+            }
 
             // Close the buffered writer
-            bufferedWriter.close();
+            if (bufferedWriter!= null) {
+                bufferedWriter.close();
+            }
+
+            // Close the file input stream of the local temporary file
+            if (fileInputStream != null) {
+                fileInputStream.close();
+            }
 
             // Close the scanner
-            scan.close();
+            if (scan != null) {
+                scan.close();
+            }
         }
 
         System.out.println("\nAzure Storage File sample - Completed.\n");
@@ -260,19 +308,25 @@ public class FileBasics {
     }
 
     /**
-     * Delete the specified file share.
+     * Enumerates the contents of the file share.
      *
-     * @param table The {@link CloudFileShare} object to delete
+     * @param rootDir Root directory which needs to be enumerated
      *
      * @throws StorageException
      */
-    private static void deleteFileShare(CloudFileShare fileShare) throws StorageException {
+    private static void enumerateFileShare(CloudFileDirectory rootDir) throws StorageException {
 
-        if (fileShare != null && fileShare.deleteIfExists() == true) {
-            System.out.println("\tSuccessfully deleted the file share.");
-        }
-        else {
-            System.out.println("\tNothing to delete.");
+        Iterable<ListFileItem> results = rootDir.listFilesAndDirectories();
+        for (Iterator<ListFileItem> itr = results.iterator(); itr.hasNext(); ) {
+            ListFileItem item = itr.next();
+            String itemType = "FILE";
+            if (item.getClass() == CloudFileDirectory.class) {
+                itemType = "DIR";
+            }
+            System.out.println(String.format("\t%s\t: %s", itemType, item.getUri().toString()));
+            if (item.getClass() == CloudFileDirectory.class) {
+                enumerateFileShare((CloudFileDirectory) item);
+            }
         }
     }
 
