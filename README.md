@@ -4,7 +4,7 @@ platforms: java
 author: sribhat-MSFT
 ---
 
-# Azure Storage: Files
+# Getting Started with Azure File Service in Java
 
 Azure File Service Sample - Demonstrates how to perform common tasks using the Microsoft Azure File Service.
 
