@@ -20,11 +20,8 @@ function readUUIDFromConfigFile() {
           executeAzureCLI(['group', 'delete', '-q', resourceGroup], function() {
               var stream = fs.createWriteStream("resources/config.properties");
               stream.once('open', function(fd) {
-                stream.write('#By default we are assuming you will use the Azure Storage Emulator. If you have an Azure Subscription, you can alternatively\n');
-                stream.write('#create a Storage Account and run against the storage service by commenting out the connection string below and using the\n'); 
-                stream.write('#second connection string - in which case you must also insert your storage account name and key in the line below.\n\n');
-                stream.write('StorageConnectionString = UseDevelopmentStorage=true\n');
-                stream.write('#StorageConnectionString = DefaultEndpointsProtocol=https;AccountName=[AccountName];AccountKey=[AccountKey]\n');
+                stream.write('##Run the sample using your Azure Storage account by updating the connection string below with your with your "AccountName" and "Key".\n\n');
+                stream.write('StorageConnectionString = DefaultEndpointsProtocol=https;AccountName=[AccountName];AccountKey=[AccountKey]\n');
                 stream.end();
               });
 
