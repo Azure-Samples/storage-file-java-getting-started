@@ -14,12 +14,20 @@ Note: If you don't have a Microsoft Azure subscription you can get a FREE trial 
 
 ## Running this sample
 
-This sample can be run using your Azure Storage account by updating the config.properties file with your "AccountName" and "Key".
+This sample can be run using your Azure Storage account by updating the config.properties file with your "AccountName" and "Key", or using the Azure CLI.
 
 To run the sample using the Azure Storage File Service:
 
 1. Create a Storage Account through the Azure Portal and provide your account name and account key in the config.properties file.
 2. Set breakpoints and run the project.
+
+To run the sample using Azure CLI:
+
+1. [Install Azure CLI](https://azure.microsoft.com/en-us/documentation/articles/xplat-cli-install/)
+2. [Login with Azure CLI](https://azure.microsoft.com/en-us/documentation/articles/xplat-cli-connect/)
+3. Run ./setup.js
+4. mvn compile exec:java
+5. Run ./teardown.js
 
 ## More information
 
