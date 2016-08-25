@@ -40,59 +40,39 @@ import com.microsoft.azure.storage.file.CopyStatus;
 import com.microsoft.azure.storage.file.FileRange;
 import com.microsoft.azure.storage.file.ListFileItem;
 
-/*
- * Azure File Service Sample - Demonstrate how to perform common tasks using the Microsoft Azure File Service.
- *
- * Documentation References:
- *  - What is a Storage Account - http://azure.microsoft.com/en-us/documentation/articles/storage-whatis-account/
- *  - Getting Started with Files - http://blogs.msdn.com/b/windowsazurestorage/archive/2014/05/12/introducing-microsoft-azure-file-service.aspx
- *  - How to use Azure File Storage - http://azure.microsoft.com/en-us/documentation/articles/storage-dotnet-how-to-use-files/
- *  - File Service Concepts - http://msdn.microsoft.com/en-us/library/dn166972.aspx
- *  - File Service REST API - http://msdn.microsoft.com/en-us/library/dn167006.aspx
- *  - Azure Storage Java API - http://azure.github.io/azure-storage-java/
- *
- * Instructions:
- *      This sample can be run using your Azure Storage account by updating the config.properties file with your "AccountName" and "Key".
- *
- *      To run the sample using the Storage Service
- *          1.  Create a Storage Account through the Azure Portal and provide your [AccountName] and [AccountKey] in the config.properties file.
- *              See https://azure.microsoft.com/en-us/documentation/articles/storage-create-storage-account/ for more information.
- *          2.  Set breakpoints and run the project.
+/**
+ * This sample illustrates basic usage of the Azure file storage service.
  */
 public class FileBasics {
 
     /**
      * Azure Storage File Sample
      *
-     * @param args No input arguments are expected from users.
      * @throws Exception
      */
-    public static void main(String[] args) throws Exception {
+    public void runSamples() throws Exception {
 
         System.out.println("Azure Storage File sample - Starting.");
 
-        Scanner scan = null;
         CloudFileClient fileClient = null;
         CloudFileShare fileShare1 = null;
         CloudFileShare fileShare2 = null;
         FileInputStream fileInputStream = null;
 
         try {
-            // Create a scanner for user input
-            scan = new Scanner(System.in);
 
             // Create a file client for interacting with the file service
-            fileClient = getFileClientReference();
+            fileClient = FileClientProvider.getFileClientReference();
 
             // Create sample file for upload demonstration
             Random random = new Random();
             System.out.println("\nCreating sample file between 128KB-256KB in size for upload demonstration.");
-            File tempFile1 = createTempLocalFile("file-", ".tmp", (128 * 1024) + random.nextInt(256 * 1024));
+            File tempFile1 = DataGenerator.createTempLocalFile("file-", ".tmp", (128 * 1024) + random.nextInt(256 * 1024));
             System.out.println(String.format("\tSuccessfully created the file \"%s\".", tempFile1.getAbsolutePath()));
 
             // Create file share with randomized name
             System.out.println("\nCreate file share for the sample demonstration");
-            fileShare1 = createFileShare(fileClient, createRandomName("filebasics-"));
+            fileShare1 = createFileShare(fileClient, DataGenerator.createRandomName("filebasics-"));
             System.out.println(String.format("\tSuccessfully created the file share \"%s\".", fileShare1.getName()));
 
             // Get a reference to the root directory of the share.
@@ -106,7 +86,7 @@ public class FileBasics {
 
             // Create a random directory under the root directory
             System.out.println("\nCreate a random directory under the root directory");
-            CloudFileDirectory dir = rootDir1.getDirectoryReference(createRandomName("dir-"));
+            CloudFileDirectory dir = rootDir1.getDirectoryReference(DataGenerator.createRandomName("dir-"));
             if (dir.createIfNotExists()) {
                 System.out.println(String.format("\tSuccessfully created the directory \"%s\".", dir.getName()));
             }
@@ -149,7 +129,7 @@ public class FileBasics {
 
             // Create another file share with randomized name
             System.out.println("\nCreate another file share for the sample demonstration");
-            fileShare2 = createFileShare(fileClient, createRandomName("filebasics-"));
+            fileShare2 = createFileShare(fileClient, DataGenerator.createRandomName("filebasics-"));
             System.out.println(String.format("\tSuccessfully created the file share \"%s\".", fileShare2.getName()));
 
             // Get a reference to the root directory of the share.
@@ -157,7 +137,7 @@ public class FileBasics {
 
             // Create sample file for copy demonstration
             System.out.println("\nCreating sample file between 10MB-15MB in size for copy demonstration.");
-            File tempFile2 = createTempLocalFile("file-", ".tmp", (10 * 1024 * 1024) + random.nextInt(5 * 1024 * 1024));
+            File tempFile2 = DataGenerator.createTempLocalFile("file-", ".tmp", (10 * 1024 * 1024) + random.nextInt(5 * 1024 * 1024));
             System.out.println(String.format("\tSuccessfully created the file \"%s\".", tempFile2.getAbsolutePath()));
 
             // Upload a local file to the root directory
@@ -225,7 +205,7 @@ public class FileBasics {
 
             // Delete the files and directory
             System.out.print("\nDelete the filess and directory. Press any key to continue...");
-            scan.nextLine();
+
             file1.delete();
             file1sparse.delete();
             file2.delete();
@@ -236,12 +216,11 @@ public class FileBasics {
             System.out.println("\tSuccessfully deleted the directory.");
         }
         catch (Throwable t) {
-            printException(t);
+            PrintHelper.printException(t);
         }
         finally {
             // Delete any file shares that we created (If you do not want to delete the file share comment the line of code below)
-            System.out.print("\nDelete any file shares we created. Press any key to continue...");
-            scan.nextLine();
+            System.out.print("\nDelete any file shares we created.");
 
             if (fileShare1 != null && fileShare1.deleteIfExists() == true) {
                 System.out.println(String.format("\tSuccessfully deleted the file share: %s", fileShare1.getName()));
@@ -255,61 +234,9 @@ public class FileBasics {
             if (fileInputStream != null) {
                 fileInputStream.close();
             }
-
-            // Close the scanner
-            if (scan != null) {
-                scan.close();
-            }
         }
 
         System.out.println("\nAzure Storage File sample - Completed.\n");
-    }
-
-    /**
-     * Validates the connection string and returns the storage file client.
-     * The connection string must be in the Azure connection string format.
-     *
-     * @return The newly created CloudFileClient object
-     *
-     * @throws RuntimeException
-     * @throws IOException
-     * @throws URISyntaxException
-     * @throws IllegalArgumentException
-     * @throws InvalidKeyException
-     */
-    private static CloudFileClient getFileClientReference() throws RuntimeException, IOException, IllegalArgumentException, URISyntaxException, InvalidKeyException {
-
-        // Retrieve the connection string
-        Properties prop = new Properties();
-        try {
-            InputStream propertyStream = FileBasics.class.getClassLoader().getResourceAsStream("config.properties");
-            if (propertyStream != null) {
-                prop.load(propertyStream);
-            }
-            else {
-                throw new RuntimeException();
-            }
-        } catch (RuntimeException|IOException e) {
-            System.out.println("\nFailed to load config.properties file.");
-            throw e;
-        }
-
-        CloudStorageAccount storageAccount;
-        try {
-            storageAccount = CloudStorageAccount.parse(prop.getProperty("StorageConnectionString"));
-        }
-        catch (IllegalArgumentException|URISyntaxException e) {
-            System.out.println("\nConnection string specifies an invalid URI.");
-            System.out.println("Please confirm the connection string is in the Azure connection string format.");
-            throw e;
-        }
-        catch (InvalidKeyException e) {
-            System.out.println("\nConnection string specifies an invalid key.");
-            System.out.println("Please confirm the AccountName and AccountKey in the connection string are valid.");
-            throw e;
-        }
-
-        return storageAccount.createCloudFileClient();
     }
 
     /**
@@ -395,81 +322,5 @@ public class FileBasics {
             Thread.sleep(1000);
             copyStatus = file.getCopyState().getStatus();
         }
-    }
-
-    /**
-     * Creates and returns a randomized name based on the prefix file for use by the sample.
-     *
-     * @param namePrefix The prefix string to be used in generating the name.
-     * @return The randomized name
-     */
-    private static String createRandomName(String namePrefix) {
-
-        return namePrefix + UUID.randomUUID().toString().replace("-", "");
-    }
-
-    /**
-     * Creates and returns a temporary local file for use by the sample.
-     *
-     * @param tempFileNamePrefix The prefix string to be used in generating the file's name.
-     * @param tempFileNameSuffix The suffix string to be used in generating the file's name.
-     * @param bytesToWrite The number of bytes to write to file.
-     * @return The newly created File object
-     *
-     * @throws IOException
-     * @throws IllegalArgumentException
-     */
-    private static File createTempLocalFile(String tempFileNamePrefix, String tempFileNameSuffix, int bytesToWrite) throws IOException, IllegalArgumentException{
-
-        File tempFile = null;
-        FileOutputStream tempFileOutputStream = null;
-        try {
-            // Create the temporary file
-            tempFile = File.createTempFile(tempFileNamePrefix, tempFileNameSuffix);
-
-            // Write random bytes to the file if requested
-            Random random = new Random();
-            byte[] randomBytes = new byte[4096];
-            tempFileOutputStream = new FileOutputStream(tempFile);
-            while (bytesToWrite > 0) {
-                random.nextBytes(randomBytes);
-                tempFileOutputStream.write(randomBytes, 0, (bytesToWrite > 4096) ? 4096 : bytesToWrite);
-                bytesToWrite -= 4096;
-            }
-        }
-        catch (Throwable t) {
-            throw t;
-        }
-        finally {
-            // Close the file output stream writer
-            if (tempFileOutputStream != null) {
-                tempFileOutputStream.close();
-            }
-
-            // Set the temporary file to delete on exit
-            if (tempFile != null) {
-                tempFile.deleteOnExit();
-            }
-        }
-
-        return tempFile;
-    }
-
-    /**
-     * Print the exception stack trace
-     *
-     * @param ex Exception to be printed
-     */
-    public static void printException(Throwable t) {
-
-        StringWriter stringWriter = new StringWriter();
-        PrintWriter printWriter = new PrintWriter(stringWriter);
-        t.printStackTrace(printWriter);
-        if (t instanceof StorageException) {
-            if (((StorageException) t).getExtendedErrorInformation() != null) {
-                System.out.println(String.format("\nError: %s", ((StorageException) t).getExtendedErrorInformation().getErrorMessage()));
-            }
-        }
-        System.out.println(String.format("Exception details:\n%s", stringWriter.toString()));
     }
 }
