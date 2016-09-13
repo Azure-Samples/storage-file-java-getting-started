@@ -209,14 +209,15 @@ class FileAdvanced {
             System.out.println("Create share");
             fileShare.createIfNotExists();
 
-            // Create the root directory of the share.
-            System.out.println("Create root directory");
+            // Create directory
+            System.out.println("Create directory");
             CloudFileDirectory rootDir = fileShare.getRootDirectoryReference();
-            rootDir.createIfNotExists();
+            CloudFileDirectory dir = rootDir.getDirectoryReference("folder");
+            dir.createIfNotExists();
 
             // Get directory properties
-            System.out.println("Get root directory properties");
-            FileDirectoryProperties props = rootDir.getProperties();
+            System.out.println("Get directory properties");
+            FileDirectoryProperties props = dir.getProperties();
 
             System.out.println();
             System.out.printf("last modified: %s%n", props.getLastModified());
@@ -245,21 +246,23 @@ class FileAdvanced {
             fileShare.createIfNotExists();
 
             CloudFileDirectory rootDir = fileShare.getRootDirectoryReference();
+            CloudFileDirectory dir = rootDir.getDirectoryReference("folder");
+            dir.createIfNotExists();
 
             // Set directory metadata
             System.out.println("Set directory metadata");
             HashMap<String, String> metadata = new HashMap<>();
             metadata.put("key1", "value1");
             metadata.put("foo", "bar");
-            rootDir.setMetadata(metadata);
+            dir.setMetadata(metadata);
 
-            // Create the root directory of the share.
-            System.out.println("Create root directory");
-            rootDir.createIfNotExists();
+            // Create directory
+            System.out.println("Create directory");
+            dir.createIfNotExists();
 
             // Get directory metadata
             System.out.println("Get directory metadata");
-            metadata = rootDir.getMetadata();
+            metadata = dir.getMetadata();
             Iterator it = metadata.entrySet().iterator();
             while (it.hasNext()) {
                 Map.Entry pair = (Map.Entry) it.next();
@@ -287,10 +290,8 @@ class FileAdvanced {
             System.out.println("Create share");
             fileShare.createIfNotExists();
 
-            // Create the root directory of the share.
-            System.out.println("Create root directory");
+            // Get the root directory reference of the share
             CloudFileDirectory rootDir = fileShare.getRootDirectoryReference();
-            rootDir.createIfNotExists();
 
             // Get a reference to a file
             CloudFile file = rootDir.getFileReference("file"
@@ -343,10 +344,8 @@ class FileAdvanced {
             System.out.println("Create share");
             fileShare.createIfNotExists();
 
-            // Create the root directory of the share.
-            System.out.println("Create root directory");
+            // Get the root directory reference of the share
             CloudFileDirectory rootDir = fileShare.getRootDirectoryReference();
-            rootDir.createIfNotExists();
 
             // Get a reference to a file
             CloudFile file = rootDir.getFileReference("file"
