@@ -46,6 +46,10 @@ class FileAdvanced {
             serviceProperties(fileClient);
             System.out.println();
 
+            System.out.println("CORS sample");
+            corsRules(fileClient);
+            System.out.println();
+
             System.out.println("Share properties sample");
             shareProperties(fileClient);
             System.out.println();
@@ -117,6 +121,32 @@ class FileAdvanced {
         finally {
             // Revert back to original service properties
             fileClient.uploadServiceProperties(originalProps);
+        }
+    }
+
+    /**
+     * Set CORS rules sample.
+     * @param fileClient Azure Storage Blob Service
+     */
+    private void corsRules(CloudFileClient fileClient) throws StorageException {
+
+        FileServiceProperties originalProperties = fileClient.downloadServiceProperties();
+
+        try {
+            // Set CORS rules
+            System.out.println("Set CORS rules");
+            CorsRule ruleAllowAll = new CorsRule();
+            ruleAllowAll.getAllowedOrigins().add("*");
+            ruleAllowAll.getAllowedMethods().add(CorsHttpMethods.GET);
+            ruleAllowAll.getAllowedHeaders().add("*");
+            ruleAllowAll.getExposedHeaders().add("*");
+            FileServiceProperties props = fileClient.downloadServiceProperties();
+            props.getCors().getCorsRules().add(ruleAllowAll);
+            fileClient.uploadServiceProperties(props);
+        }
+        finally {
+            // Revert back to original service properties
+            fileClient.uploadServiceProperties(originalProperties);
         }
     }
 
